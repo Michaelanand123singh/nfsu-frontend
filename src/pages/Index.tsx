@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Bed, Users, Calendar, Shield, Star, MapPin, Phone, Mail } from "lucide-react";
+import { ArrowRight, Bed, Users, Calendar, Shield, Star, MapPin, Phone, Mail, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { RoomTypeModal } from "@/components/booking/RoomTypeModal";
-import { getRoomStats } from "@/data/mockData";
+import { useRoomStats } from "@/hooks/useRoomStats";
 import campusHero from "@/assets/campus-hero.jpg";
 
 const Index = () => {
   const [isRoomTypeModalOpen, setIsRoomTypeModalOpen] = useState(false);
   const navigate = useNavigate();
-  const roomStats = getRoomStats();
+  const { roomStats, loading, error } = useRoomStats();
 
   return (
     <div className="min-h-screen bg-background">      
@@ -41,11 +41,19 @@ const Index = () => {
             <div className="flex flex-wrap gap-4 sm:gap-6 mb-6 sm:mb-8 animate-fade-in" style={{ animationDelay: '0.3s' }}>
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/50 rounded-full px-3 py-2">
                 <Bed className="h-4 w-4" />
-                <span>{roomStats.single.total + roomStats.double.total} Total Rooms</span>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <span>{roomStats?.summary.totalRooms || 0} Total Rooms</span>
+                )}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/50 rounded-full px-3 py-2">
                 <Users className="h-4 w-4" />
-                <span>{roomStats.single.vacant + roomStats.double.vacant} Available</span>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <span>{roomStats?.summary.availableRooms || 0} Available</span>
+                )}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/50 rounded-full px-3 py-2">
                 <MapPin className="h-4 w-4" />
@@ -96,47 +104,62 @@ const Index = () => {
                 <p className="text-sm text-muted-foreground">Perfect for solo travelers</p>
               </CardHeader>
               <CardContent className="text-center space-y-4 pt-0">
-                <div className="text-2xl sm:text-3xl font-bold text-primary">
-                  {roomStats.single.vacant} Available
-                </div>
-                <p className="text-muted-foreground text-sm sm:text-base">
-                  Out of {roomStats.single.total} total rooms
-                </p>
-                
-                {/* Availability Indicator */}
-                <div className="w-full bg-muted rounded-full h-2 mb-4">
-                  <div 
-                    className="bg-room-vacant h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${(roomStats.single.vacant / roomStats.single.total) * 100}%` }}
-                  />
-                </div>
-                
-                <div className="flex justify-center gap-2 sm:gap-3 text-xs sm:text-sm flex-wrap">
-                  <Badge variant="outline" className="bg-room-vacant/10 text-room-vacant border-room-vacant/20">
-                    {roomStats.single.vacant} Vacant
-                  </Badge>
-                  <Badge variant="outline" className="bg-room-booked/10 text-room-booked border-room-booked/20">
-                    {roomStats.single.booked} Booked
-                  </Badge>
-                  {roomStats.single.held > 0 && (
-                    <Badge variant="outline" className="bg-room-held/10 text-room-held border-room-held/20">
-                      {roomStats.single.held} Held
-                    </Badge>
-                  )}
-                </div>
-                
-                <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-                  <p>Includes: Free WiFi, AC, Attached Bathroom</p>
-                </div>
-                
-                <p className="text-xl sm:text-2xl font-semibold text-foreground">₹1,500<span className="text-sm font-normal text-muted-foreground">/night</span></p>
-                <Button 
-                  className="w-full mt-4 sm:mt-6 py-2 sm:py-3 text-sm sm:text-base group-hover:scale-105 transition-transform" 
-                  onClick={() => navigate('/rooms/single')}
-                >
-                  View Single Rooms
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-4">
+                    <p className="text-destructive text-sm">Unable to load room data</p>
+                    <p className="text-muted-foreground text-xs mt-1">Please try refreshing the page</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl sm:text-3xl font-bold text-primary">
+                      {roomStats?.single.vacant || 0} Available
+                    </div>
+                    <p className="text-muted-foreground text-sm sm:text-base">
+                      Out of {roomStats?.single.total || 0} total rooms
+                    </p>
+                    
+                    {/* Availability Indicator */}
+                    <div className="w-full bg-muted rounded-full h-2 mb-4">
+                      <div 
+                        className="bg-room-vacant h-2 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${roomStats?.single.total ? (roomStats.single.vacant / roomStats.single.total) * 100 : 0}%` 
+                        }}
+                      />
+                    </div>
+                    
+                    <div className="flex justify-center gap-2 sm:gap-3 text-xs sm:text-sm flex-wrap">
+                      <Badge variant="outline" className="bg-room-vacant/10 text-room-vacant border-room-vacant/20">
+                        {roomStats?.single.vacant || 0} Vacant
+                      </Badge>
+                      <Badge variant="outline" className="bg-room-booked/10 text-room-booked border-room-booked/20">
+                        {roomStats?.single.booked || 0} Booked
+                      </Badge>
+                      {(roomStats?.single.held || 0) > 0 && (
+                        <Badge variant="outline" className="bg-room-held/10 text-room-held border-room-held/20">
+                          {roomStats?.single.held || 0} Held
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+                      <p>Includes: Free WiFi, AC, Attached Bathroom</p>
+                    </div>
+                    
+                    <p className="text-xl sm:text-2xl font-semibold text-foreground">₹1,500<span className="text-sm font-normal text-muted-foreground">/night</span></p>
+                    <Button 
+                      className="w-full mt-4 sm:mt-6 py-2 sm:py-3 text-sm sm:text-base group-hover:scale-105 transition-transform" 
+                      onClick={() => navigate('/rooms/single')}
+                    >
+                      View Single Rooms
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -150,47 +173,62 @@ const Index = () => {
                 <p className="text-sm text-muted-foreground">Ideal for sharing or couples</p>
               </CardHeader>
               <CardContent className="text-center space-y-4 pt-0">
-                <div className="text-2xl sm:text-3xl font-bold text-primary">
-                  {roomStats.double.vacant} Available
-                </div>
-                <p className="text-muted-foreground text-sm sm:text-base">
-                  Out of {roomStats.double.total} total rooms
-                </p>
-                
-                {/* Availability Indicator */}
-                <div className="w-full bg-muted rounded-full h-2 mb-4">
-                  <div 
-                    className="bg-room-vacant h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${(roomStats.double.vacant / roomStats.double.total) * 100}%` }}
-                  />
-                </div>
-                
-                <div className="flex justify-center gap-2 sm:gap-3 text-xs sm:text-sm flex-wrap">
-                  <Badge variant="outline" className="bg-room-vacant/10 text-room-vacant border-room-vacant/20">
-                    {roomStats.double.vacant} Vacant
-                  </Badge>
-                  <Badge variant="outline" className="bg-room-booked/10 text-room-booked border-room-booked/20">
-                    {roomStats.double.booked} Booked
-                  </Badge>
-                  {roomStats.double.held > 0 && (
-                    <Badge variant="outline" className="bg-room-held/10 text-room-held border-room-held/20">
-                      {roomStats.double.held} Held
-                    </Badge>
-                  )}
-                </div>
-                
-                <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-                  <p>Includes: Free WiFi, AC, Attached Bathroom, Mini Fridge</p>
-                </div>
-                
-                <p className="text-xl sm:text-2xl font-semibold text-foreground">₹2,200<span className="text-sm font-normal text-muted-foreground">/night</span></p>
-                <Button 
-                  className="w-full mt-4 sm:mt-6 py-2 sm:py-3 text-sm sm:text-base group-hover:scale-105 transition-transform" 
-                  onClick={() => navigate('/rooms/double')}
-                >
-                  View Double Rooms
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-4">
+                    <p className="text-destructive text-sm">Unable to load room data</p>
+                    <p className="text-muted-foreground text-xs mt-1">Please try refreshing the page</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-2xl sm:text-3xl font-bold text-primary">
+                      {roomStats?.double.vacant || 0} Available
+                    </div>
+                    <p className="text-muted-foreground text-sm sm:text-base">
+                      Out of {roomStats?.double.total || 0} total rooms
+                    </p>
+                    
+                    {/* Availability Indicator */}
+                    <div className="w-full bg-muted rounded-full h-2 mb-4">
+                      <div 
+                        className="bg-room-vacant h-2 rounded-full transition-all duration-500"
+                        style={{ 
+                          width: `${roomStats?.double.total ? (roomStats.double.vacant / roomStats.double.total) * 100 : 0}%` 
+                        }}
+                      />
+                    </div>
+                    
+                    <div className="flex justify-center gap-2 sm:gap-3 text-xs sm:text-sm flex-wrap">
+                      <Badge variant="outline" className="bg-room-vacant/10 text-room-vacant border-room-vacant/20">
+                        {roomStats?.double.vacant || 0} Vacant
+                      </Badge>
+                      <Badge variant="outline" className="bg-room-booked/10 text-room-booked border-room-booked/20">
+                        {roomStats?.double.booked || 0} Booked
+                      </Badge>
+                      {(roomStats?.double.held || 0) > 0 && (
+                        <Badge variant="outline" className="bg-room-held/10 text-room-held border-room-held/20">
+                          {roomStats?.double.held || 0} Held
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+                      <p>Includes: Free WiFi, AC, Attached Bathroom, Mini Fridge</p>
+                    </div>
+                    
+                    <p className="text-xl sm:text-2xl font-semibold text-foreground">₹2,200<span className="text-sm font-normal text-muted-foreground">/night</span></p>
+                    <Button 
+                      className="w-full mt-4 sm:mt-6 py-2 sm:py-3 text-sm sm:text-base group-hover:scale-105 transition-transform" 
+                      onClick={() => navigate('/rooms/double')}
+                    >
+                      View Double Rooms
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
